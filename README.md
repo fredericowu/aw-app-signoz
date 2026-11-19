@@ -104,11 +104,12 @@ bare-metal agent instead of a receiver on this app's own collector.
     already-bootstrapped instance creates a second, empty organization
     instead of taking over the existing one — you'd log in successfully but
     see no dashboards, no saved views, none of your existing telemetry.
-  - **Nothing in this form validates the password** before saving — the
-    length/character-class rule is documented on the field, not enforced.
-    A password that fails SigNoz's own policy makes its backend refuse to
-    start (a crash loop) until you blank this switch and save again — that
-    is the recovery step if this happens.
+  - With managed mode on, saving requires a non-empty root email and a
+    password. The workspace checks the full ASCII password policy on save.
+    For passwords containing non-ASCII characters, it checks the
+    72-character cap and leaves the remaining checks to SigNoz. If SigNoz
+    rejects the password and the backend fails to start, blank the managed
+    root account switch and save again.
   - The password is stored the same way this app already stores its
     session signing secret: in this workspace's app-config store and in
     the container's own environment, not specially encrypted beyond that.

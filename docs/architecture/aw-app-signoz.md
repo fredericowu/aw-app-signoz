@@ -155,21 +155,18 @@ never configured" the same absent-env-var state, so a fresh install and an
 unmodified existing install both keep behaving exactly like before this
 feature shipped.
 
-**Nothing here validates the password before saving.** `root_password`
-carries a `pattern` mirroring Go's `IsPasswordValid` (≥12 chars, at least
-one lowercase/uppercase/digit/symbol from `` ~!@#$%^&*()_+`-={}|[]\:"<>?,./
-``, ASCII-only where Go's check is Unicode-aware — strictly stricter, so it
-can never accept something SigNoz would reject) — but it exists purely as
-machine-readable spec and documentation. `_coerce_config` in `src/apps/
-routes.py` only coerces booleans; `AppConfigBody.jsx` renders a bare
-`<input>` with no `pattern`/`minLength` attribute wired up. Saving a
-password that fails SigNoz's own `Config.Validate()` makes SigNoz's backend
-refuse to start at all — a real crash loop under this framework's
-`restart: unless-stopped`, and a crash-looping container here has
-previously leaked hundreds of duplicate iptables rules (see the
-`aw-autoskill-iptables-dedupe-crash-loop` skill). Recovery is to blank
-`root_account_managed` back to `""` in Settings and save — that alone
-un-sets the env var and lets the backend start again on its next restart.
+When root account management is on, the workspace validates the merged
+config on save, including partial API-key updates. The manifest requires
+a non-empty root email and a password of at most 72 characters. It checks
+the full ASCII password policy on save, including the 12-character minimum
+and the lowercase, uppercase, digit, and symbol requirements. For non-ASCII
+passwords, the workspace checks the character cap and lets SigNoz apply its
+own rules, including bcrypt's 72-byte limit. The Settings form leaves these
+conditional checks to the server.
+
+A non-ASCII password that SigNoz rejects can still prevent the backend from
+starting. Blank the managed root account switch in Settings and save again
+to unset the enable flag and let the backend start on its next restart.
 
 **The `root_org_id` adoption trap.** `reconcile()` finds the org to attach
 the root user to via `orgGetter.GetByIDOrName(cfg.Org.ID, cfg.Org.Name)`;
