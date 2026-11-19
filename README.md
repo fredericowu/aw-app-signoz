@@ -104,12 +104,13 @@ bare-metal agent instead of a receiver on this app's own collector.
     already-bootstrapped instance creates a second, empty organization
     instead of taking over the existing one — you'd log in successfully but
     see no dashboards, no saved views, none of your existing telemetry.
-  - With managed mode on, saving requires a non-empty root email and a
-    password. The workspace checks the full ASCII password policy on save.
-    For passwords containing non-ASCII characters, it checks the
-    72-character cap and leaves the remaining checks to SigNoz. If SigNoz
-    rejects the password and the backend fails to start, blank the managed
-    root account switch and save again.
+  - With managed mode on, saving requires a non-empty root email. New or
+    changed passwords must meet SigNoz's password rules and use ASCII, with
+    a length of 12 to 72 characters. On workspaces that preserve unchanged
+    stored config violations, an existing non-ASCII password can remain
+    while managed mode stays on. If an existing password prevents the
+    backend from starting, blank the managed root account switch and save
+    again.
   - The password is stored the same way this app already stores its
     session signing secret: in this workspace's app-config store and in
     the container's own environment, not specially encrypted beyond that.

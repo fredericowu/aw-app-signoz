@@ -157,16 +157,18 @@ feature shipped.
 
 When root account management is on, the workspace validates the merged
 config on save, including partial API-key updates. The manifest requires
-a non-empty root email and a password of at most 72 characters. It checks
-the full ASCII password policy on save, including the 12-character minimum
-and the lowercase, uppercase, digit, and symbol requirements. For non-ASCII
-passwords, the workspace checks the character cap and lets SigNoz apply its
-own rules, including bcrypt's 72-byte limit. The Settings form leaves these
+a non-empty root email. New or changed passwords must use ASCII and meet
+SigNoz's password policy, including the lowercase, uppercase, digit, and
+symbol requirements. The ASCII rule makes the 12-to-72-character limit
+equivalent to the byte limit. The Settings form delegates these
 conditional checks to the server.
 
-A non-ASCII password that SigNoz rejects can still prevent the backend from
-starting. Blank the managed root account switch in Settings and save again
-to unset the enable flag and let the backend start on its next restart.
+On workspaces that preserve unchanged stored config violations, a stored
+non-ASCII password can remain during unrelated saves while management is
+on. Changing the password or enabling management requires a valid ASCII
+password. If an existing password prevents the backend from starting,
+blank the managed root account switch in Settings and save again to unset
+the enable flag and let the backend start on its next restart.
 
 **The `root_org_id` adoption trap.** `reconcile()` finds the org to attach
 the root user to via `orgGetter.GetByIDOrName(cfg.Org.ID, cfg.Org.Name)`;

@@ -245,7 +245,7 @@
         ],
         "default": "",
         "title": "Manage the root account from these settings",
-        "description": "Off by default \u2014 a fresh install behaves exactly like today, with SigNoz's own signup screen creating the first account. Turn this on to set/reset SigNoz's root account (email + password) from this form instead: (1) it disables SigNoz's own signup screen the moment it's on, and (2) it makes the password below the source of truth \u2014 if you change the password inside SigNoz's own UI, this setting overwrites it back at the next backend restart. Enter a root email and password before saving. If SigNoz rejects a non-ASCII password and its backend stops starting, blank this switch and save again."
+        "description": "Off by default \u2014 a fresh install behaves exactly like today, with SigNoz's own signup screen creating the first account. Turn this on to set/reset SigNoz's root account (email + password) from this form instead: (1) it disables SigNoz's own signup screen the moment it's on, and (2) it makes the password below the source of truth \u2014 if you change the password inside SigNoz's own UI, this setting overwrites it back at the next backend restart. Enter a root email and an ASCII password before saving. If an existing password prevents the backend from starting, blank this switch and save again."
       },
       "root_email": {
         "type": "string",
@@ -258,7 +258,7 @@
         "default": "",
         "x-secret": true,
         "title": "Root account password",
-        "description": "ASCII passwords are checked on save in managed mode: 12 to 72 characters, with at least one lowercase letter, one uppercase letter, one digit and one symbol (from ~!@#$%^&*()_+`-={}|[]\\:\"<>?,./). For non-ASCII passwords, Settings checks only the 72-character cap. If SigNoz rejects the password and its backend stops starting, blank the managed root account switch and save again."
+        "description": "New or changed passwords must use ASCII in managed mode: 12 to 72 characters, with at least one lowercase letter, one uppercase letter, one digit and one symbol (from ~!@#$%^&*()_+`-={}|[]\\:\"<>?,./). On workspaces that support unchanged stored config violations, a stored non-ASCII password can remain until it is changed or managed mode is turned off. If an existing password prevents the backend from starting, blank the managed root account switch and save again."
       },
       "root_org_id": {
         "type": "string",
@@ -294,14 +294,9 @@
           "minLength": 1
         },
         "root_password": {
+          "minLength": 12,
           "maxLength": 72,
-          "anyOf": [
-            {
-              "minLength": 12,
-              "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./])[A-Za-z0-9~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./]{12,}$"
-            },
-            { "pattern": "[^\\u0000-\\u007F]" }
-          ]
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./])[A-Za-z0-9~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./]{12,}(?![\\s\\S])"
         }
       }
     }
