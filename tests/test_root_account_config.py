@@ -124,6 +124,7 @@ def test_expand_env_emits_all_four_vars_when_configured(backend_sidecar):
     [
         ("", "", []),
         (None, "", []),
+        ("", 123, ["type"]),
         ("true", "", ["minLength", "pattern"]),
         ("true", None, ["required"]),
         ("true", "Sh0rt!Aa", ["minLength", "pattern"]),
@@ -140,18 +141,21 @@ def test_partial_api_key_save_respects_managed_root_password_policy(
     schema = manifest["config_schema"]
     assert schema["properties"]["root_password"]["x-secret"] is True
 
-    config = {key: spec["default"] for key, spec in schema["properties"].items()}
-    config["signoz_api_key"] = "synthetic-api-key"
+    previous = {key: spec["default"] for key, spec in schema["properties"].items()}
     for key, value in (
         ("root_account_managed", root_management),
         ("root_password", password),
     ):
         if value is None:
-            config.pop(key)
+            previous.pop(key)
         else:
-            config[key] = value
+            previous[key] = value
 
-    errors = list(Draft7Validator(schema).iter_errors(config))
+    candidate = {**previous, "signoz_api_key": "synthetic-api-key"}
+    errors = list(Draft7Validator(schema).iter_errors(candidate))
     assert sorted(error.validator for error in errors) == expected_errors
-    assert all(list(error.path) == ["root_password"] for error in errors
-               if error.validator != "required")
+    assert all(
+        list(error.path) == ["root_password"]
+        for error in errors
+        if error.validator != "required"
+    )
