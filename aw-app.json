@@ -245,7 +245,7 @@
         ],
         "default": "",
         "title": "Manage the root account from these settings",
-        "description": "Off by default \u2014 a fresh install behaves exactly like today, with SigNoz's own signup screen creating the first account. Turn this on to set/reset SigNoz's root account (email + password) from this form instead: (1) it disables SigNoz's own signup screen the moment it's on, and (2) it makes the password below the source of truth \u2014 if you change the password inside SigNoz's own UI, this setting overwrites it back at the next backend restart. Nothing here validates the password before saving (see its own field); an invalid one stops the SigNoz backend from starting until you blank this switch again."
+        "description": "Off by default \u2014 a fresh install behaves exactly like today, with SigNoz's own signup screen creating the first account. Turn this on to set/reset SigNoz's root account (email + password) from this form instead: (1) it disables SigNoz's own signup screen the moment it's on, and (2) it makes the password below the source of truth \u2014 if you change the password inside SigNoz's own UI, this setting overwrites it back at the next backend restart. Set a password that meets the requirements below before saving."
       },
       "root_email": {
         "type": "string",
@@ -257,10 +257,8 @@
         "type": "string",
         "default": "",
         "x-secret": true,
-        "minLength": 12,
-        "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./])[A-Za-z0-9~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./]{12,}$",
         "title": "Root account password",
-        "description": "At least 12 characters, with at least one lowercase letter, one uppercase letter, one digit and one symbol (from ~!@#$%^&*()_+`-={}|[]\\:\"<>?,./) \u2014 SigNoz's own password policy, mirrored here as documentation only. Nothing in this form currently enforces the pattern or minimum length before saving; a password that fails SigNoz's own policy will make its backend refuse to start until this is fixed. Only used while \"Manage the root account from these settings\" is on."
+        "description": "At least 12 characters, with at least one lowercase letter, one uppercase letter, one digit and one symbol (from ~!@#$%^&*()_+`-={}|[]\\:\"<>?,./) \u2014 SigNoz's own password policy, enforced on save while root account management is on. Only used while \"Manage the root account from these settings\" is on."
       },
       "root_org_id": {
         "type": "string",
@@ -282,7 +280,22 @@
         "description": "Read-only-in-practice status published by the provisioner sidecar (this form has no read-only widget yet, so it's technically editable \u2014 anything you type here is overwritten on the sidecar's next pass, whichever comes first). Explains why the SigNoz API key above is or isn't set: e.g. it asks you to turn on the managed root account, or reports that the key was created automatically. See also `aw-workspace-cli doctor`, which surfaces the same state."
       }
     },
-    "required": []
+    "required": [],
+    "if": {
+      "required": ["root_account_managed"],
+      "properties": {
+        "root_account_managed": { "const": "true" }
+      }
+    },
+    "then": {
+      "required": ["root_password"],
+      "properties": {
+        "root_password": {
+          "minLength": 12,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./])[A-Za-z0-9~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./]{12,}$"
+        }
+      }
+    }
   },
   "dependencies": {},
   "migrations": {}

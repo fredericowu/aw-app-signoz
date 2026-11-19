@@ -119,19 +119,39 @@ def test_expand_env_emits_all_four_vars_when_configured(backend_sidecar):
     assert resolved["SIGNOZ_USER_ROOT_ORG_ID"] == "01a053ad-d16f-79bd-9b2f-1f9bde1edda7"
 
 
-def test_root_password_pattern_matches_signoz_policy(manifest):
-    import re
+@pytest.mark.parametrize(
+    ("root_management", "password", "expected_errors"),
+    [
+        ("", "", []),
+        (None, "", []),
+        ("true", "", ["minLength", "pattern"]),
+        ("true", None, ["required"]),
+        ("true", "Sh0rt!Aa", ["minLength", "pattern"]),
+        ("true", "NoSymbolHere123", ["pattern"]),
+        ("true", "no_upper_pass123!", ["pattern"]),
+        ("true", "Sup3r$ecurePassw0rd!", []),
+    ],
+)
+def test_partial_api_key_save_respects_managed_root_password_policy(
+    manifest, root_management, password, expected_errors,
+):
+    from jsonschema import Draft7Validator
 
-    spec = manifest["config_schema"]["properties"]["root_password"]
-    pattern = re.compile(spec["pattern"])
+    schema = manifest["config_schema"]
+    assert schema["properties"]["root_password"]["x-secret"] is True
 
-    # Valid per SigNoz's IsPasswordValid: >=12 chars, lower+upper+digit+symbol.
-    assert pattern.match("Sup3r$ecurePassw0rd!")
-    # Too short.
-    assert not pattern.match("Sh0rt!Aa")
-    # Missing a symbol.
-    assert not pattern.match("NoSymbolHere123")
-    # Missing an uppercase letter.
-    assert not pattern.match("no_upper_pass123!")
-    assert spec["x-secret"] is True
-    assert spec["minLength"] == 12
+    config = {key: spec["default"] for key, spec in schema["properties"].items()}
+    config["signoz_api_key"] = "synthetic-api-key"
+    for key, value in (
+        ("root_account_managed", root_management),
+        ("root_password", password),
+    ):
+        if value is None:
+            config.pop(key)
+        else:
+            config[key] = value
+
+    errors = list(Draft7Validator(schema).iter_errors(config))
+    assert sorted(error.validator for error in errors) == expected_errors
+    assert all(list(error.path) == ["root_password"] for error in errors
+               if error.validator != "required")
