@@ -104,11 +104,17 @@ bare-metal agent instead of a receiver on this app's own collector.
     already-bootstrapped instance creates a second, empty organization
     instead of taking over the existing one — you'd log in successfully but
     see no dashboards, no saved views, none of your existing telemetry.
-  - **Nothing in this form validates the password** before saving — the
-    length/character-class rule is documented on the field, not enforced.
-    A password that fails SigNoz's own policy makes its backend refuse to
-    start (a crash loop) until you blank this switch and save again — that
-    is the recovery step if this happens.
+  - New or changed root emails must be ASCII addresses of at most 254
+    characters. Managed mode requires an address, and leaving it blank is
+    allowed when management is off. On workspaces that preserve unchanged
+    stored config violations, an existing address can stay during unrelated
+    saves. Enabling management requires a valid address.
+  - With managed mode on, new or changed passwords must meet SigNoz's password rules and use ASCII, with
+    a length of 12 to 72 characters. On workspaces that preserve unchanged
+    stored config violations, an existing non-ASCII password can remain
+    while managed mode stays on. If an existing password prevents the
+    backend from starting, blank the managed root account switch and save
+    again.
   - The password is stored the same way this app already stores its
     session signing secret: in this workspace's app-config store and in
     the container's own environment, not specially encrypted beyond that.

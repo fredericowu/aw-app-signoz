@@ -119,19 +119,100 @@ def test_expand_env_emits_all_four_vars_when_configured(backend_sidecar):
     assert resolved["SIGNOZ_USER_ROOT_ORG_ID"] == "01a053ad-d16f-79bd-9b2f-1f9bde1edda7"
 
 
-def test_root_password_pattern_matches_signoz_policy(manifest):
+ROOT_EMAIL = "root@example.test"
+ASCII_PASSWORD = "Synthetic1!Password"
+MAX_ASCII_PASSWORD = "Aa1!" + "a" * 68
+OVER_MAX_ASCII_PASSWORD = MAX_ASCII_PASSWORD + "a"
+
+PARTIAL_SAVE_CASES = [
+    ("", "", "", []),
+    (None, "", "", []),
+    ("", "", OVER_MAX_ASCII_PASSWORD, []),
+    ("", "", 123, [("root_password", "type")]),
+    ("true", ROOT_EMAIL, ASCII_PASSWORD, []),
+    ("true", ROOT_EMAIL, "Éclair123!abcd", [("root_password", "pattern")]),
+    ("true", ROOT_EMAIL, "ÉÅéâöç1!", [("root_password", "minLength"), ("root_password", "pattern")]),
+    ("true", ROOT_EMAIL, ASCII_PASSWORD + "\n", [("root_password", "pattern")]),
+    ("true", "", ASCII_PASSWORD, [("root_email", "minLength"), ("root_email", "pattern")]),
+    ("true", None, ASCII_PASSWORD, [(None, "required")]),
+    ("true", ROOT_EMAIL, None, [(None, "required")]),
+    ("true", ROOT_EMAIL, "", [("root_password", "minLength"), ("root_password", "pattern")]),
+    ("true", ROOT_EMAIL, "Sh0rt!Aa", [("root_password", "minLength"), ("root_password", "pattern")]),
+    ("true", ROOT_EMAIL, "NoSymbolHere123", [("root_password", "pattern")]),
+    ("true", ROOT_EMAIL, "no_upper_pass123!", [("root_password", "pattern")]),
+    ("true", ROOT_EMAIL, MAX_ASCII_PASSWORD, []),
+    ("true", ROOT_EMAIL, OVER_MAX_ASCII_PASSWORD, [("root_password", "maxLength")]),
+]
+
+
+def previous_config(schema, root_management, email, password):
+    previous = {key: spec["default"] for key, spec in schema["properties"].items()}
+    for key, value in (
+        ("root_account_managed", root_management),
+        ("root_email", email),
+        ("root_password", password),
+    ):
+        if value is None:
+            previous.pop(key)
+        else:
+            previous[key] = value
+    return previous
+
+
+@pytest.mark.parametrize(("root_management", "email", "password", "expected_errors"), PARTIAL_SAVE_CASES)
+def test_partial_api_key_save_respects_managed_root_password_policy(
+    manifest, root_management, email, password, expected_errors,
+):
+    from jsonschema import Draft7Validator
+
+    schema = manifest["config_schema"]
+    assert schema["properties"]["root_password"]["x-secret"] is True
+    previous = previous_config(schema, root_management, email, password)
+    candidate = {**previous, "signoz_api_key": "synthetic-api-key"}
+
+    errors = list(Draft7Validator(schema).iter_errors(candidate))
+    assert [(next(iter(error.path), None), error.validator) for error in errors] == expected_errors
+
+
+@pytest.mark.parametrize("email", [
+    "root",
+    "a@b",
+    "a..b@example.test",
+    ".a@example.test",
+    "a@-example.test",
+    "a@example.c0",
+    " a@example.test",
+    "a@example.test\n",
+    "é@example.test",
+    "a@example.test.",
+    "a" * 243 + "@example.test",
+])
+@pytest.mark.parametrize("managed", ["", "true"])
+def test_partial_save_rejects_invalid_root_email(manifest, email, managed):
+    from jsonschema import Draft7Validator
+
+    schema = manifest["config_schema"]
+    previous = previous_config(schema, managed, ROOT_EMAIL, ASCII_PASSWORD)
+    candidate = {**previous, "root_email": email, "signoz_api_key": "synthetic-api-key"}
+    errors = list(Draft7Validator(schema).iter_errors(candidate))
+    assert errors
+    assert all(list(error.path) == ["root_email"] for error in errors)
+
+
+def test_accepted_root_emails_match_signoz(manifest):
     import re
 
-    spec = manifest["config_schema"]["properties"]["root_password"]
-    pattern = re.compile(spec["pattern"])
+    from jsonschema import Draft7Validator
 
-    # Valid per SigNoz's IsPasswordValid: >=12 chars, lower+upper+digit+symbol.
-    assert pattern.match("Sup3r$ecurePassw0rd!")
-    # Too short.
-    assert not pattern.match("Sh0rt!Aa")
-    # Missing a symbol.
-    assert not pattern.match("NoSymbolHere123")
-    # Missing an uppercase letter.
-    assert not pattern.match("no_upper_pass123!")
-    assert spec["x-secret"] is True
-    assert spec["minLength"] == 12
+    # Unquoted ASCII branch of SigNoz v0.128.0 pkg/valuer/email.go.
+    atom = r"[a-z0-9!#$%&'*+/=?^_`{|}~\-]+"
+    domain = r"[a-z0-9](?:[a-z0-9.\-~]*[a-z0-9])?"
+    tld = r"[a-z](?:[a-z0-9.\-~]*[a-z])?"
+    upstream = re.compile(rf"{atom}(?:\.{atom})*@(?:{domain}\.)+{tld}\.?")
+    schema = manifest["config_schema"]
+    for email in (ROOT_EMAIL, "A.B_2+tag%test@sub-domain.example.test", "a" * 241 + "@example.test"):
+        for managed in ("", "true"):
+            previous = previous_config(schema, managed, "", ASCII_PASSWORD)
+            candidate = {**previous, "root_email": email, "signoz_api_key": "synthetic-api-key"}
+            assert Draft7Validator(schema).is_valid(candidate)
+        assert upstream.fullmatch(email.lower())

@@ -155,21 +155,27 @@ never configured" the same absent-env-var state, so a fresh install and an
 unmodified existing install both keep behaving exactly like before this
 feature shipped.
 
-**Nothing here validates the password before saving.** `root_password`
-carries a `pattern` mirroring Go's `IsPasswordValid` (≥12 chars, at least
-one lowercase/uppercase/digit/symbol from `` ~!@#$%^&*()_+`-={}|[]\:"<>?,./
-``, ASCII-only where Go's check is Unicode-aware — strictly stricter, so it
-can never accept something SigNoz would reject) — but it exists purely as
-machine-readable spec and documentation. `_coerce_config` in `src/apps/
-routes.py` only coerces booleans; `AppConfigBody.jsx` renders a bare
-`<input>` with no `pattern`/`minLength` attribute wired up. Saving a
-password that fails SigNoz's own `Config.Validate()` makes SigNoz's backend
-refuse to start at all — a real crash loop under this framework's
-`restart: unless-stopped`, and a crash-looping container here has
-previously leaked hundreds of duplicate iptables rules (see the
-`aw-autoskill-iptables-dedupe-crash-loop` skill). Recovery is to blank
-`root_account_managed` back to `""` in Settings and save — that alone
-un-sets the env var and lets the backend start again on its next restart.
+When root account management is on, the workspace validates the merged
+config on save, including partial API-key updates. In either mode, new or
+changed non-empty root emails must match the manifest’s ASCII subset of
+SigNoz v0.128.0’s email pattern and be at most 254 characters. SigNoz decodes
+the root email whenever it is set. The managed branch requires a valid,
+non-empty address, including when enabling management. On workspaces that
+preserve unchanged stored config violations, an existing address can stay
+during unrelated saves until edited.
+
+New or changed managed passwords must use ASCII and meet
+SigNoz's password policy, including the lowercase, uppercase, digit, and
+symbol requirements. The ASCII rule makes the 12-to-72-character limit
+equivalent to the byte limit. The Settings form delegates these
+conditional checks to the server.
+
+On workspaces that preserve unchanged stored config violations, a stored
+non-ASCII password can remain during unrelated saves while management is
+on. Changing the password or enabling management requires a valid ASCII
+password. If an existing password prevents the backend from starting,
+blank the managed root account switch in Settings and save again to unset
+the enable flag and let the backend start on its next restart.
 
 **The `root_org_id` adoption trap.** `reconcile()` finds the org to attach
 the root user to via `orgGetter.GetByIDOrName(cfg.Org.ID, cfg.Org.Name)`;

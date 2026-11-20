@@ -245,22 +245,22 @@
         ],
         "default": "",
         "title": "Manage the root account from these settings",
-        "description": "Off by default \u2014 a fresh install behaves exactly like today, with SigNoz's own signup screen creating the first account. Turn this on to set/reset SigNoz's root account (email + password) from this form instead: (1) it disables SigNoz's own signup screen the moment it's on, and (2) it makes the password below the source of truth \u2014 if you change the password inside SigNoz's own UI, this setting overwrites it back at the next backend restart. Nothing here validates the password before saving (see its own field); an invalid one stops the SigNoz backend from starting until you blank this switch again."
+        "description": "Off by default \u2014 a fresh install behaves exactly like today, with SigNoz's own signup screen creating the first account. Turn this on to set/reset SigNoz's root account (email + password) from this form instead: (1) it disables SigNoz's own signup screen the moment it's on, and (2) it makes the password below the source of truth \u2014 if you change the password inside SigNoz's own UI, this setting overwrites it back at the next backend restart. Enter a root email and an ASCII password before saving. If an existing password prevents the backend from starting, blank this switch and save again."
       },
       "root_email": {
         "type": "string",
         "default": "",
         "title": "Root account email",
-        "description": "Email for the managed root account. Only used while \"Manage the root account from these settings\" is on. Changing it re-points the existing root user at the new address on the next backend restart \u2014 it does not create a second account."
+        "maxLength": 254,
+        "pattern": "^([A-Za-z0-9_%+\\-]+(\\.[A-Za-z0-9_%+\\-]+)*@([A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?\\.)+[A-Za-z]([A-Za-z0-9\\-]*[A-Za-z])?)?(?![\\s\\S])",
+        "description": "New or changed root emails must be ASCII addresses of at most 254 characters. Leave this blank when management is off. On workspaces that preserve unchanged stored config violations, a stored address can stay until edited. Enabling management requires a valid address. Changing the email re-points the existing root user at the new address on the next backend restart."
       },
       "root_password": {
         "type": "string",
         "default": "",
         "x-secret": true,
-        "minLength": 12,
-        "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./])[A-Za-z0-9~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./]{12,}$",
         "title": "Root account password",
-        "description": "At least 12 characters, with at least one lowercase letter, one uppercase letter, one digit and one symbol (from ~!@#$%^&*()_+`-={}|[]\\:\"<>?,./) \u2014 SigNoz's own password policy, mirrored here as documentation only. Nothing in this form currently enforces the pattern or minimum length before saving; a password that fails SigNoz's own policy will make its backend refuse to start until this is fixed. Only used while \"Manage the root account from these settings\" is on."
+        "description": "New or changed passwords must use ASCII in managed mode: 12 to 72 characters, with at least one lowercase letter, one uppercase letter, one digit and one symbol (from ~!@#$%^&*()_+`-={}|[]\\:\"<>?,./). On workspaces that support unchanged stored config violations, a stored non-ASCII password can remain until it is changed or managed mode is turned off. If an existing password prevents the backend from starting, blank the managed root account switch and save again."
       },
       "root_org_id": {
         "type": "string",
@@ -282,7 +282,27 @@
         "description": "Read-only-in-practice status published by the provisioner sidecar (this form has no read-only widget yet, so it's technically editable \u2014 anything you type here is overwritten on the sidecar's next pass, whichever comes first). Explains why the SigNoz API key above is or isn't set: e.g. it asks you to turn on the managed root account, or reports that the key was created automatically. See also `aw-workspace-cli doctor`, which surfaces the same state."
       }
     },
-    "required": []
+    "required": [],
+    "if": {
+      "required": ["root_account_managed"],
+      "properties": {
+        "root_account_managed": { "const": "true" }
+      }
+    },
+    "then": {
+      "required": ["root_email", "root_password"],
+      "properties": {
+        "root_email": {
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_%+\\-]+(\\.[A-Za-z0-9_%+\\-]+)*@([A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?\\.)+[A-Za-z]([A-Za-z0-9\\-]*[A-Za-z])?(?![\\s\\S])"
+        },
+        "root_password": {
+          "minLength": 12,
+          "maxLength": 72,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./])[A-Za-z0-9~!@#$%^&*()_+`\\-={}|\\[\\]\\\\:\"<>?,./]{12,}(?![\\s\\S])"
+        }
+      }
+    }
   },
   "dependencies": {},
   "migrations": {}
