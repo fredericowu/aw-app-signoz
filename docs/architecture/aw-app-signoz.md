@@ -156,8 +156,15 @@ unmodified existing install both keep behaving exactly like before this
 feature shipped.
 
 When root account management is on, the workspace validates the merged
-config on save, including partial API-key updates. The manifest requires
-a non-empty root email. New or changed passwords must use ASCII and meet
+config on save, including partial API-key updates. In either mode, new or
+changed non-empty root emails must match the manifest’s ASCII subset of
+SigNoz v0.128.0’s email pattern and be at most 254 characters. SigNoz decodes
+the root email whenever it is set. The managed branch requires a valid,
+non-empty address, including when enabling management. On workspaces that
+preserve unchanged stored config violations, an existing address can stay
+during unrelated saves until edited.
+
+New or changed managed passwords must use ASCII and meet
 SigNoz's password policy, including the lowercase, uppercase, digit, and
 symbol requirements. The ASCII rule makes the 12-to-72-character limit
 equivalent to the byte limit. The Settings form delegates these

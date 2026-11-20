@@ -251,7 +251,9 @@
         "type": "string",
         "default": "",
         "title": "Root account email",
-        "description": "Email for the managed root account. Only used while \"Manage the root account from these settings\" is on. Changing it re-points the existing root user at the new address on the next backend restart \u2014 it does not create a second account."
+        "maxLength": 254,
+        "pattern": "^([A-Za-z0-9_%+\\-]+(\\.[A-Za-z0-9_%+\\-]+)*@([A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?\\.)+[A-Za-z]([A-Za-z0-9\\-]*[A-Za-z])?)?(?![\\s\\S])",
+        "description": "New or changed root emails must be ASCII addresses of at most 254 characters. Leave this blank when management is off. On workspaces that preserve unchanged stored config violations, a stored address can stay until edited. Enabling management requires a valid address. Changing the email re-points the existing root user at the new address on the next backend restart."
       },
       "root_password": {
         "type": "string",
@@ -291,7 +293,8 @@
       "required": ["root_email", "root_password"],
       "properties": {
         "root_email": {
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_%+\\-]+(\\.[A-Za-z0-9_%+\\-]+)*@([A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?\\.)+[A-Za-z]([A-Za-z0-9\\-]*[A-Za-z])?(?![\\s\\S])"
         },
         "root_password": {
           "minLength": 12,

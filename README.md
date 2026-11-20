@@ -104,8 +104,12 @@ bare-metal agent instead of a receiver on this app's own collector.
     already-bootstrapped instance creates a second, empty organization
     instead of taking over the existing one — you'd log in successfully but
     see no dashboards, no saved views, none of your existing telemetry.
-  - With managed mode on, saving requires a non-empty root email. New or
-    changed passwords must meet SigNoz's password rules and use ASCII, with
+  - New or changed root emails must be ASCII addresses of at most 254
+    characters. Managed mode requires an address, and leaving it blank is
+    allowed when management is off. On workspaces that preserve unchanged
+    stored config violations, an existing address can stay during unrelated
+    saves. Enabling management requires a valid address.
+  - With managed mode on, new or changed passwords must meet SigNoz's password rules and use ASCII, with
     a length of 12 to 72 characters. On workspaces that preserve unchanged
     stored config violations, an existing non-ASCII password can remain
     while managed mode stays on. If an existing password prevents the

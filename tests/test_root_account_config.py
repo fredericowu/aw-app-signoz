@@ -133,7 +133,7 @@ PARTIAL_SAVE_CASES = [
     ("true", ROOT_EMAIL, "Éclair123!abcd", [("root_password", "pattern")]),
     ("true", ROOT_EMAIL, "ÉÅéâöç1!", [("root_password", "minLength"), ("root_password", "pattern")]),
     ("true", ROOT_EMAIL, ASCII_PASSWORD + "\n", [("root_password", "pattern")]),
-    ("true", "", ASCII_PASSWORD, [("root_email", "minLength")]),
+    ("true", "", ASCII_PASSWORD, [("root_email", "minLength"), ("root_email", "pattern")]),
     ("true", None, ASCII_PASSWORD, [(None, "required")]),
     ("true", ROOT_EMAIL, None, [(None, "required")]),
     ("true", ROOT_EMAIL, "", [("root_password", "minLength"), ("root_password", "pattern")]),
@@ -172,3 +172,47 @@ def test_partial_api_key_save_respects_managed_root_password_policy(
 
     errors = list(Draft7Validator(schema).iter_errors(candidate))
     assert [(next(iter(error.path), None), error.validator) for error in errors] == expected_errors
+
+
+@pytest.mark.parametrize("email", [
+    "root",
+    "a@b",
+    "a..b@example.test",
+    ".a@example.test",
+    "a@-example.test",
+    "a@example.c0",
+    " a@example.test",
+    "a@example.test\n",
+    "é@example.test",
+    "a@example.test.",
+    "a" * 243 + "@example.test",
+])
+@pytest.mark.parametrize("managed", ["", "true"])
+def test_partial_save_rejects_invalid_root_email(manifest, email, managed):
+    from jsonschema import Draft7Validator
+
+    schema = manifest["config_schema"]
+    previous = previous_config(schema, managed, ROOT_EMAIL, ASCII_PASSWORD)
+    candidate = {**previous, "root_email": email, "signoz_api_key": "synthetic-api-key"}
+    errors = list(Draft7Validator(schema).iter_errors(candidate))
+    assert errors
+    assert all(list(error.path) == ["root_email"] for error in errors)
+
+
+def test_accepted_root_emails_match_signoz(manifest):
+    import re
+
+    from jsonschema import Draft7Validator
+
+    # Unquoted ASCII branch of SigNoz v0.128.0 pkg/valuer/email.go.
+    atom = r"[a-z0-9!#$%&'*+/=?^_`{|}~\-]+"
+    domain = r"[a-z0-9](?:[a-z0-9.\-~]*[a-z0-9])?"
+    tld = r"[a-z](?:[a-z0-9.\-~]*[a-z])?"
+    upstream = re.compile(rf"{atom}(?:\.{atom})*@(?:{domain}\.)+{tld}\.?")
+    schema = manifest["config_schema"]
+    for email in (ROOT_EMAIL, "A.B_2+tag%test@sub-domain.example.test", "a" * 241 + "@example.test"):
+        for managed in ("", "true"):
+            previous = previous_config(schema, managed, "", ASCII_PASSWORD)
+            candidate = {**previous, "root_email": email, "signoz_api_key": "synthetic-api-key"}
+            assert Draft7Validator(schema).is_valid(candidate)
+        assert upstream.fullmatch(email.lower())
